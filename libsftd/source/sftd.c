@@ -1,4 +1,5 @@
 #include "sftd.h"
+#include <wchar.h>
 #include <sf2d.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -83,46 +84,83 @@ void sftd_free_font(sftd_font *font)
 	}
 }
 
+static void draw_bitmap(FT_Bitmap *bitmap, int x, int y, unsigned int color)
+{
+	//This is too ugly
+	sf2d_texture *tex = sf2d_create_texture(bitmap->width, bitmap->rows, GPU_RGBA8, SF2D_PLACE_TEMP);
+
+	int j, k;
+	for (j = 0; j < bitmap->rows; j++) {
+		for (k = 0; k < bitmap->width; k++) {
+			((u32 *)tex->data)[j*tex->pow2_w + k] = __builtin_bswap32((color & ~0xFF) | bitmap->buffer[j*bitmap->width + k]);
+		}
+	}
+
+	sf2d_texture_tile32(tex);
+	sf2d_draw_texture(tex, x, y);
+	sf2d_free_texture(tex);
+}
+
 void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const char *text)
 {
 	FT_Face face = font->face;
 	FT_GlyphSlot slot = face->glyph;
-	int pen_x, pen_y, i, n;
-	FT_Error error;
 	FT_UInt glyph_index;
+	FT_Bool use_kerning = FT_HAS_KERNING(face);
+	FT_UInt previous = 0;
+	int pen_x = x;
+	int pen_y = y;
 
 	FT_Set_Pixel_Sizes(face, 0, size);
 
-	pen_x = x;
-	pen_y = y;
-	n = strlen(text);
+	while (*text) {
+		glyph_index = FT_Get_Char_Index(face, *text++);
 
-	for (i = 0; i < n; i++) {
-		glyph_index = FT_Get_Char_Index(face, text[i]);
-		
-		error = FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT);
-		if (error) continue;
-
-		error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
-		if (error) continue;
-
-		FT_Bitmap *bitmap = &slot->bitmap;
-
-		//This is too ugly
-		sf2d_texture *tex = sf2d_create_texture(bitmap->width, bitmap->rows, GPU_RGBA8, SF2D_PLACE_TEMP);
-		
-		int j, k;
-		for (j = 0; j < bitmap->rows; j++) {
-			for (k = 0; k < bitmap->width; k++) {
-				((u32 *)tex->data)[j*tex->pow2_w + k] = __builtin_bswap32((color & ~0xFF) | bitmap->buffer[j*bitmap->width + k]);
-			}
+		if (use_kerning && previous && glyph_index) {
+			FT_Vector delta;
+			FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_DEFAULT, &delta);
+			pen_x += delta.x >> 6;
 		}
 
-		sf2d_texture_tile32(tex);
-		sf2d_draw_texture(tex, pen_x + slot->bitmap_left, pen_y + slot->bitmap_top);
-		sf2d_free_texture(tex);
-		
-		pen_x += (slot->advance.x >> 6);
-		pen_y += 0;
+		if (FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT)) continue;
+		if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) continue;
+
+		draw_bitmap(&slot->bitmap, pen_x + slot->bitmap_left + x, pen_y - slot->bitmap_top + y, color);
+
+		pen_x += slot->advance.x >> 6;
+		pen_y += slot->advance.y >> 6;
+		previous = glyph_index;
+	}
+}
+
+void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const wchar_t *text)
+{
+	FT_Face face = font->face;
+	FT_GlyphSlot slot = face->glyph;
+	FT_UInt glyph_index;
+	FT_Bool use_kerning = FT_HAS_KERNING(face);
+	FT_UInt previous = 0;
+	int pen_x = x;
+	int pen_y = y;
+
+	FT_Set_Pixel_Sizes(face, 0, size);
+
+	while (*text) {
+		glyph_index = FT_Get_Char_Index(face, *text++);
+
+		if (use_kerning && previous && glyph_index) {
+			FT_Vector delta;
+			FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_DEFAULT, &delta);
+			pen_x += delta.x >> 6;
+		}
+
+		if (FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT)) continue;
+		if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) continue;
+
+		draw_bitmap(&slot->bitmap, pen_x + slot->bitmap_left + x, pen_y + slot->bitmap_top + y, color);
+
+		pen_x += slot->advance.x >> 6;
+		pen_y += slot->advance.y >> 6;
+		previous = glyph_index;
 	}
 }
