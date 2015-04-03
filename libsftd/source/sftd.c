@@ -157,7 +157,7 @@ void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned
 		if (FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT)) continue;
 		if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL)) continue;
 
-		draw_bitmap(&slot->bitmap, pen_x + slot->bitmap_left + x, pen_y + slot->bitmap_top + y, color);
+		draw_bitmap(&slot->bitmap, pen_x + slot->bitmap_left + x, pen_y - slot->bitmap_top + y, color);
 
 		pen_x += slot->advance.x >> 6;
 		pen_y += slot->advance.y >> 6;
