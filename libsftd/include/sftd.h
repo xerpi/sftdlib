@@ -20,9 +20,18 @@ extern "C" {
 
 // Structs
 
+typedef struct sftd_font sftd_font;
+
 // Basic functions
+int sftd_init();
+int sftd_fini();
+
+sftd_font *sftd_load_font_file(const char *pathname);
+sftd_font *sftd_load_font_mem(const void *buffer, unsigned int size);
+void sftd_free_font(sftd_font *font);
 
 // Draw functions
+void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const char *text);
 
 #ifdef __cplusplus
 }

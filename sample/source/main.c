@@ -3,6 +3,8 @@
 #include <math.h>
 #include <3ds.h>
 #include <sf2d.h>
+#include <sftd.h>
+#include "airstrike_ttf.h"
 
 extern const struct {
   unsigned int 	 width;
@@ -44,6 +46,10 @@ int main()
 	sf2d_fill_texture_from_RGBA8(tex2, citra_img.pixel_data, citra_img.width, citra_img.height);
 	sf2d_texture_tile32(tex2);
 
+	// Font loading
+	sftd_init();
+	sftd_font *font = sftd_load_font_mem(airstrike_ttf, airstrike_ttf_size);
+
 	float rad = 0.0f;
 
 	while (aptMainLoop()) {
@@ -59,6 +65,8 @@ int main()
 			sf2d_draw_rectangle(5, 5, 30, 30, RGBA8(0x00, 0xFF, 0xFF, 0xFF));
 			sf2d_draw_texture_rotate(tex1, 200-tex1->width/2, 120-tex1->height/2, rad);
 
+			sftd_draw_text(font, 10, 10, RGBA8(255, 0, 255, 255), 16, "Font drawing on the top screen!");
+
 		sf2d_end_frame();
 
 		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
@@ -69,12 +77,17 @@ int main()
 			sf2d_draw_texture_rotate(tex2, 190, 120-tex2->height/2, -rad);
 			sf2d_draw_rectangle(160-15 + cosf(rad)*50.0f, 120-15 + sinf(rad)*50.0f, 30, 30, RGBA8(0x00, 0xFF, 0xFF, 0xFF));
 
+			sftd_draw_text(font, 10, 10, RGBA8(255, 255, 0, 255), 14, "Font drawing on the bottom screen!");
+
 		sf2d_end_frame();
 
 		rad += 0.2f;
 
 		sf2d_swapbuffers();
 	}
+
+	sftd_free_font(font);
+	sftd_fini();
 	
 	linearFree(triangle_data);
 	sf2d_free_texture(tex1);
