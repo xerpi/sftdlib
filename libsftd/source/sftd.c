@@ -87,7 +87,7 @@ void sftd_free_font(sftd_font *font)
 static void draw_bitmap(FT_Bitmap *bitmap, int x, int y, unsigned int color)
 {
 	//This is too ugly
-	sf2d_texture *tex = sf2d_create_texture(bitmap->width, bitmap->rows, GPU_RGBA8, SF2D_PLACE_TEMP);
+	sf2d_texture *tex = sf2d_create_texture_empty(bitmap->width, bitmap->rows, GPU_RGBA8, SF2D_PLACE_TEMP);
 
 	int j, k;
 	for (j = 0; j < bitmap->rows; j++) {
