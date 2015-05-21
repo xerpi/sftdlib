@@ -37,10 +37,10 @@ int sftd_fini();
 
 /**
  * @brief Loads a font from a file
- * @param pathname the path to the font
+ * @param filename the path to the font
  * @return a pointer to the loaded font (NULL on error)
  */
-sftd_font *sftd_load_font_file(const char *pathname);
+sftd_font *sftd_load_font_file(const char *filename);
 
 /**
  * @brief Loads a font from memory
@@ -70,6 +70,19 @@ void sftd_free_font(sftd_font *font);
 void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const char *text);
 
 /**
+ * @brief Draws formatted text using a font
+ * @param font the font to use
+ * @param x the x coordinate to draw the text to
+ * @param y the y coordinate to draw the text to
+ * @param color the color to draw the font
+ * @param size the font size
+ * @param text a pointer to the text to draw
+ * @param ... variable arguments
+ */
+void sftd_draw_textf(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const char *text, ...);
+
+
+/**
  * @brief Draws wide text using a font
  * @param font the font to use
  * @param x the x coordinate to draw the text to
@@ -79,6 +92,19 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
  * @param text a pointer to the wide text to draw
  */
 void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const wchar_t *text);
+
+/**
+ * @brief Draws formatted wide text using a font
+ * @param font the font to use
+ * @param x the x coordinate to draw the text to
+ * @param y the y coordinate to draw the text to
+ * @param color the color to draw the font
+ * @param size the font size
+ * @param text a pointer to the wide text to draw
+ * @param ... variable arguments
+ */
+void sftd_draw_wtextf(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const wchar_t *text, ...);
+
 
 #ifdef __cplusplus
 }
