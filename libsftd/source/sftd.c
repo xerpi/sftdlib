@@ -9,10 +9,18 @@ static int sftd_initialized = 0;
 static FT_Library ftlibrary;
 static FTC_Manager ftcmanager;
 
+#define ATLAS_W 512
+#define ATLAS_H 512
+
 typedef enum {
 	SFTD_LOAD_FROM_FILE,
 	SFTD_LOAD_FROM_MEM
 } sftd_font_load_from;
+
+typedef struct {
+	int x, y, w, h, left, top, v;
+	int advance_x, advance_y;
+} atlas_position;
 
 struct sftd_font {
 	sftd_font_load_from from;
@@ -25,6 +33,11 @@ struct sftd_font {
 	};
 	FTC_CMapCache cmapcache;
 	FTC_ImageCache imagecache;
+	// Atlas
+	sf2d_texture *atlas;
+	atlas_position atlas_pos[65536];
+	int atlas_x;
+	int atlas_y;
 };
 
 static FT_Error ftc_face_requester(FTC_FaceID face_id, FT_Library library, FT_Pointer request_data, FT_Face *face)
@@ -47,6 +60,7 @@ static FT_Error ftc_face_requester(FTC_FaceID face_id, FT_Library library, FT_Po
 				0,
 				face);
 	}
+
 	return error;
 }
 
@@ -105,6 +119,13 @@ sftd_font *sftd_load_font_file(const char *filename)
 	FTC_CMapCache_New(ftcmanager, &font->cmapcache);
 	FTC_ImageCache_New(ftcmanager, &font->imagecache);
 
+	// Atlas
+	font->atlas = sf2d_create_texture(ATLAS_W, ATLAS_H, TEXFMT_RGBA8, SF2D_PLACE_RAM);
+	memset(font->atlas_pos, 0, sizeof(*font->atlas_pos) * 65536);
+	font->atlas->tiled = 1;
+	font->atlas_x = 0;
+	font->atlas_y = 0;
+
 	font->from = SFTD_LOAD_FROM_FILE;
 
 	return font;
@@ -119,6 +140,13 @@ sftd_font *sftd_load_font_mem(const void *buffer, unsigned int size)
 	FTC_CMapCache_New(ftcmanager, &font->cmapcache);
 	FTC_ImageCache_New(ftcmanager, &font->imagecache);
 
+	// Atlas
+	font->atlas = sf2d_create_texture(ATLAS_W, ATLAS_H, TEXFMT_RGBA8, SF2D_PLACE_RAM);
+	memset(font->atlas_pos, 0, sizeof(*font->atlas_pos) * 65536);
+	font->atlas->tiled = 1;
+	font->atlas_x = 0;
+	font->atlas_y = 0;
+
 	font->from = SFTD_LOAD_FROM_MEM;
 
 	return font;
@@ -132,6 +160,7 @@ void sftd_free_font(sftd_font *font)
 		if (font->from == SFTD_LOAD_FROM_FILE) {
 			free(font->filename);
 		}
+		sf2d_free_texture(font->atlas);
 		free(font);
 	}
 }
@@ -152,6 +181,7 @@ static void draw_bitmap(FT_Bitmap *bitmap, int x, int y, unsigned int color)
 	sf2d_draw_texture(tex, x, y);
 	sf2d_free_texture(tex);
 }
+
 
 void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned int size, const char *text)
 {
@@ -185,14 +215,69 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
 			pen_x += delta.x >> 6;
 		}
 
-		FTC_ImageCache_LookupScaler(font->imagecache, &scaler, flags, glyph_index, &glyph, NULL);
-		if (glyph->format == FT_GLYPH_FORMAT_BITMAP) {
-			FT_BitmapGlyph bitmap_glyph = (FT_BitmapGlyph)glyph;
+		if (font->atlas_pos[glyph_index].v) {
+			sf2d_draw_texture_part(font->atlas,
+				pen_x + font->atlas_pos[glyph_index].left + x,
+				pen_y - font->atlas_pos[glyph_index].top + y,
+				font->atlas_pos[glyph_index].x,
+				font->atlas_pos[glyph_index].y,
+				font->atlas_pos[glyph_index].w,
+				font->atlas_pos[glyph_index].h);
 
-			draw_bitmap(&bitmap_glyph->bitmap, pen_x + bitmap_glyph->left + x, pen_y - bitmap_glyph->top + y, color);
+			pen_x += font->atlas_pos[glyph_index].advance_x >> 16;
+			pen_y += font->atlas_pos[glyph_index].advance_y >> 16;
 
-			pen_x += bitmap_glyph->root.advance.x >> 16;
-			pen_y += bitmap_glyph->root.advance.y >> 16;
+		} else {
+			FTC_ImageCache_LookupScaler(font->imagecache, &scaler, flags, glyph_index, &glyph, NULL);
+			if (glyph->format == FT_GLYPH_FORMAT_BITMAP) {
+				FT_BitmapGlyph bitmap_glyph = (FT_BitmapGlyph)glyph;
+
+				FT_Bitmap *bitmap = &bitmap_glyph->bitmap;
+
+				// Get next atlas pos;
+				if (font->atlas_x + size > ATLAS_W) {
+					font->atlas_x = 0;
+					font->atlas_y += size;
+				}
+
+				//printf("atlas_x: %i  atlas_y: %i\n", font->atlas_x, font->atlas_y);
+				//printf("bwidth: %i  brows: %i\n", bitmap->width, bitmap->rows);
+
+				//draw_bitmap(&bitmap_glyph->bitmap, pen_x + bitmap_glyph->left + x, pen_y - bitmap_glyph->top + y, color);
+				int j, k;
+				for (j = 0; j < bitmap->rows; j++) {
+					for (k = 0; k < bitmap->width; k++) {
+						sf2d_set_pixel(font->atlas,
+							(font->atlas_x + k),
+							(font->atlas_y + j),
+							__builtin_bswap32((color & ~0xFF) | bitmap->buffer[j*bitmap->width + k]));
+					}
+				}
+
+				font->atlas_pos[glyph_index].left = bitmap_glyph->left;
+				font->atlas_pos[glyph_index].top = bitmap_glyph->top;
+				font->atlas_pos[glyph_index].x = font->atlas_x;
+				font->atlas_pos[glyph_index].y = font->atlas_y;
+				font->atlas_pos[glyph_index].w = bitmap->width;
+				font->atlas_pos[glyph_index].h = bitmap->rows;
+				font->atlas_pos[glyph_index].advance_x = bitmap_glyph->root.advance.x;
+				font->atlas_pos[glyph_index].advance_y = bitmap_glyph->root.advance.y;
+				font->atlas_pos[glyph_index].v = 1;
+
+				sf2d_draw_texture_part(font->atlas,
+					pen_x + font->atlas_pos[glyph_index].left + x,
+					pen_y - font->atlas_pos[glyph_index].top + y,
+					font->atlas_pos[glyph_index].x,
+					font->atlas_pos[glyph_index].y,
+					font->atlas_pos[glyph_index].w,
+					font->atlas_pos[glyph_index].h);
+
+				font->atlas_x += size;
+
+				pen_x += bitmap_glyph->root.advance.x >> 16;
+				pen_y += bitmap_glyph->root.advance.y >> 16;
+			}
+
 		}
 
 		previous = glyph_index;
