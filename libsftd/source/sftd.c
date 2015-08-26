@@ -228,7 +228,7 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
 			&rect, &bitmap_left, &bitmap_top,
 			&advance_x, &advance_y, &glyph_size);
 
-		const float draw_scale = glyph_size/(float)size;
+		const float draw_scale = size/(float)glyph_size;
 
 		sf2d_draw_texture_part_scale_blend(font->tex_atlas->tex,
 			pen_x + bitmap_left * draw_scale,
@@ -304,7 +304,7 @@ void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned
 			&rect, &bitmap_left, &bitmap_top,
 			&advance_x, &advance_y, &glyph_size);
 
-		const float draw_scale = glyph_size/(float)size;
+		const float draw_scale = size/(float)glyph_size;
 
 		sf2d_draw_texture_part_scale_blend(font->tex_atlas->tex,
 			pen_x + bitmap_left * draw_scale,
