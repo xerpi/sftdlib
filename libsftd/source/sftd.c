@@ -486,6 +486,97 @@ void sftd_draw_text_wrap(sftd_font *font, int x, int y, unsigned int color, unsi
 	}
 }
 
+void sftd_calc_bounding_box(int *boundingWidth, int *boundingHeight, sftd_font *font, unsigned int size, unsigned int lineWidth, const char *text)
+{
+	FTC_FaceID face_id = (FTC_FaceID)font;
+	FT_Face face;
+	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+
+	FT_Int charmap_index;
+	charmap_index = FT_Get_Charmap_Index(face->charmap);
+
+	FT_Glyph glyph;
+	FT_Bool use_kerning = FT_HAS_KERNING(face);
+	FT_UInt glyph_index, previous = 0;
+	int pen_x = 0;
+	int pen_y = size;
+
+	FTC_ScalerRec scaler;
+	scaler.face_id = face_id;
+	scaler.width = size;
+	scaler.height = size;
+	scaler.pixel = 1;
+
+	FT_ULong flags = FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL;
+
+	bool isFirstLine = true;
+	char buffer[strlen(text)];
+	sprintf(buffer, text);
+	char *currentWord;
+	int currentWordLength;
+	int currentCharIndex;
+	int greatesLineWidth = 0;
+
+	currentWord = strtok(buffer, " ");
+	while (currentWord) {
+		currentWordLength = strlen(currentWord);
+		if(pen_x + sftd_get_text_width(font, size, currentWord) >= lineWidth && !isFirstLine) {
+			if(pen_x > greatesLineWidth) {
+				greatesLineWidth = pen_x;
+			}
+			pen_x = 0;
+			pen_y += size;
+		}
+		isFirstLine = false;
+		for(currentCharIndex = 0; currentCharIndex < currentWordLength + 1; currentCharIndex++) {
+			if(currentCharIndex < currentWordLength) {
+				glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, currentWord[currentCharIndex]);
+			}
+			else {
+				glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, ' ');
+			}
+			
+			// TODO get word size and linewrap if needed
+
+			if (use_kerning && previous && glyph_index) {
+				FT_Vector delta;
+				FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_DEFAULT, &delta);
+				pen_x += delta.x >> 6;
+			}
+
+			if (!texture_atlas_exists(font->tex_atlas, glyph_index)) {
+				FTC_ImageCache_LookupScaler(font->imagecache, &scaler, flags, glyph_index, &glyph, NULL);
+
+				if (!atlas_add_glyph(font->tex_atlas, glyph_index, (FT_BitmapGlyph)glyph, size)) {
+					continue;
+				}
+			}
+
+			bp2d_rectangle rect;
+			int bitmap_left, bitmap_top;
+			int advance_x, advance_y;
+			int glyph_size;
+
+			texture_atlas_get(font->tex_atlas, glyph_index,
+				&rect, &bitmap_left, &bitmap_top,
+				&advance_x, &advance_y, &glyph_size);
+
+			const float draw_scale = size/(float)glyph_size;
+
+			pen_x += (advance_x >> 16) * draw_scale;
+			pen_y += (advance_y >> 16) * draw_scale;
+
+			
+			previous = glyph_index;
+
+			
+		}
+		currentWord = strtok(NULL, " ");
+	}
+	*boundingWidth = greatesLineWidth;
+	*boundingHeight = pen_y;
+}
+
 void sftd_draw_textf_wrap(sftd_font *font, int x, int y, unsigned int color, unsigned int size, unsigned int lineWidth, const char *text, ...)
 {
 	char buffer[256];

@@ -16,6 +16,10 @@ int main()
 	sftd_init();
 	sftd_font *font = sftd_load_font_mem(FreeSans_ttf, FreeSans_ttf_size);
 
+	const char *someText = "Font drawing on the top screen! Text wraps after 300 pixels... Lorem ipsum dolor sit amet, consetetur sadipscing elit.";
+	int textWidth = 0;
+	int textHeight = 0;
+
 	while (aptMainLoop()) {
 
 		hidScanInput();
@@ -24,7 +28,9 @@ int main()
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 
 			sftd_draw_textf(font, 10, 10, RGBA8(0, 255, 0, 255), 20, "FPS %f", sf2d_get_fps());
-			sftd_draw_text_wrap(font, 10, 40,  RGBA8(255, 255, 255, 255), 20, 300, "Font drawing on the top screen! Text wraps after 300 pixels... Lorem ipsum dolor sit amet, consetetur sadipscing elit.");
+			sftd_calc_bounding_box(&textWidth, &textHeight, font, 20, 300, someText);
+			sf2d_draw_rectangle(10, 40, textWidth, textHeight, RGBA8(0, 100, 0, 255));
+			sftd_draw_text_wrap(font, 10, 40,  RGBA8(255, 255, 255, 255), 20, 300, someText);
 
 		sf2d_end_frame();
 
