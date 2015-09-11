@@ -24,18 +24,7 @@ int main()
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 
 			sftd_draw_textf(font, 10, 10, RGBA8(0, 255, 0, 255), 20, "FPS %f", sf2d_get_fps());
-
-			sftd_draw_text(font, 10, 30,  RGBA8(255, 0,   0,   255), 20, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 50,  RGBA8(0,   255, 0,   255), 15, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 68,  RGBA8(0,   0,   255, 255), 25, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 90,  RGBA8(255, 255, 0,   255), 10, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 105, RGBA8(255, 0,   255, 255), 8, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 120, RGBA8(0,   255, 255, 255), 30, "Font drawing on the top screen!");
-
-			sftd_draw_text(font, 10, 155, RGBA8(255, 0,   0,   255), 20, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 170, RGBA8(0,   255, 0,   255), 2, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 180, RGBA8(0,   0,   255, 255), 10, "Font drawing on the top screen!");
-			sftd_draw_text(font, 10, 205, RGBA8(255, 255, 0,   255), 170, "Font drawing on the top screen!");
+			sftd_draw_text_wrap(font, 10, 40,  RGBA8(255, 255, 255, 255), 20, 300, "Font drawing on the top screen! Text wraps after 300 pixels... Lorem ipsum dolor sit amet, consetetur sadipscing elit.");
 
 		sf2d_end_frame();
 
