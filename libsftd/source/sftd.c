@@ -334,7 +334,8 @@ void sftd_draw_wtextf(sftd_font *font, int x, int y, unsigned int color, unsigne
 	va_end(args);
 }
 
-int sftd_get_text_width(sftd_font *font, unsigned int size, char *text) {
+int sftd_get_text_width(sftd_font *font, unsigned int size, const char *text)
+{
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
 	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
@@ -438,7 +439,7 @@ void sftd_draw_text_wrap(sftd_font *font, int x, int y, unsigned int color, unsi
 			else {
 				glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, ' ');
 			}
-			
+
 			// TODO get word size and linewrap if needed
 
 			if (use_kerning && previous && glyph_index) {
@@ -477,10 +478,10 @@ void sftd_draw_text_wrap(sftd_font *font, int x, int y, unsigned int color, unsi
 			pen_x += (advance_x >> 16) * draw_scale;
 			pen_y += (advance_y >> 16) * draw_scale;
 
-			
+
 			previous = glyph_index;
 
-			
+
 		}
 		currentWord = strtok(NULL, " ");
 	}
@@ -535,7 +536,7 @@ void sftd_calc_bounding_box(int *boundingWidth, int *boundingHeight, sftd_font *
 			else {
 				glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, ' ');
 			}
-			
+
 			// TODO get word size and linewrap if needed
 
 			if (use_kerning && previous && glyph_index) {
@@ -566,10 +567,10 @@ void sftd_calc_bounding_box(int *boundingWidth, int *boundingHeight, sftd_font *
 			pen_x += (advance_x >> 16) * draw_scale;
 			pen_y += (advance_y >> 16) * draw_scale;
 
-			
+
 			previous = glyph_index;
 
-			
+
 		}
 		currentWord = strtok(NULL, " ");
 	}
