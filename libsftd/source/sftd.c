@@ -13,7 +13,6 @@
 
 static int sftd_initialized = 0;
 static FT_Library ftlibrary;
-static FTC_Manager ftcmanager;
 
 typedef enum {
 	SFTD_LOAD_FROM_FILE,
@@ -29,6 +28,7 @@ struct sftd_font {
 			unsigned int buffer_size;
 		};
 	};
+	FTC_Manager ftcmanager;
 	FTC_CMapCache cmapcache;
 	FTC_ImageCache imagecache;
 	texture_atlas *tex_atlas;
@@ -66,20 +66,6 @@ int sftd_init()
 		return 0;
 	}
 
-	error = FTC_Manager_New(
-		ftlibrary,
-		0,  /* use default */
-		0,  /* use default */
-		0,  /* use default */
-		&ftc_face_requester,  /* use our requester */
-		NULL,                 /* user data  */
-		&ftcmanager);
-
-	if (error != FT_Err_Ok) {
-		FT_Done_FreeType(ftlibrary);
-		return 0;
-	}
-
 	sftd_initialized = 1;
 	return 1;
 }
@@ -93,15 +79,17 @@ int sftd_fini()
 		return 0;
 	}
 
-	FTC_Manager_Done(ftcmanager);
-
 	sftd_initialized = 0;
 	return 1;
 }
 
 sftd_font *sftd_load_font_file(const char *filename)
 {
+	FT_Error error;
+
 	sftd_font *font = malloc(sizeof(*font));
+	if (!font)
+		return NULL;
 
 	size_t len = strlen(filename);
 
@@ -109,8 +97,23 @@ sftd_font *sftd_load_font_file(const char *filename)
 	strcpy(font->filename, filename);
 	font->filename[len] = '\0';
 
-	FTC_CMapCache_New(ftcmanager, &font->cmapcache);
-	FTC_ImageCache_New(ftcmanager, &font->imagecache);
+	error = FTC_Manager_New(
+		ftlibrary,
+		0,  /* use default */
+		0,  /* use default */
+		0,  /* use default */
+		&ftc_face_requester,  /* use our requester */
+		NULL,                 /* user data  */
+		&font->ftcmanager);
+
+	if (error != FT_Err_Ok) {
+		free(font->filename);
+		free(font);
+		return NULL;
+	}
+
+	FTC_CMapCache_New(font->ftcmanager, &font->cmapcache);
+	FTC_ImageCache_New(font->ftcmanager, &font->imagecache);
 
 	font->from = SFTD_LOAD_FROM_FILE;
 	font->tex_atlas = texture_atlas_create(ATLAS_DEFAULT_W, ATLAS_DEFAULT_H,
@@ -121,12 +124,31 @@ sftd_font *sftd_load_font_file(const char *filename)
 
 sftd_font *sftd_load_font_mem(const void *buffer, unsigned int size)
 {
+	FT_Error error;
+
 	sftd_font *font = malloc(sizeof(*font));
+	if (!font)
+		return NULL;
+
 	font->font_buffer = buffer;
 	font->buffer_size = size;
 
-	FTC_CMapCache_New(ftcmanager, &font->cmapcache);
-	FTC_ImageCache_New(ftcmanager, &font->imagecache);
+	error = FTC_Manager_New(
+		ftlibrary,
+		0,  /* use default */
+		0,  /* use default */
+		0,  /* use default */
+		&ftc_face_requester,  /* use our requester */
+		NULL,                 /* user data  */
+		&font->ftcmanager);
+
+	if (error != FT_Err_Ok) {
+		free(font);
+		return NULL;
+	}
+
+	FTC_CMapCache_New(font->ftcmanager, &font->cmapcache);
+	FTC_ImageCache_New(font->ftcmanager, &font->imagecache);
 
 	font->from = SFTD_LOAD_FROM_MEM;
 	font->tex_atlas = texture_atlas_create(ATLAS_DEFAULT_W, ATLAS_DEFAULT_H,
@@ -139,7 +161,8 @@ void sftd_free_font(sftd_font *font)
 {
 	if (font) {
 		FTC_FaceID face_id = (FTC_FaceID)font;
-		FTC_Manager_RemoveFaceID(ftcmanager, face_id);
+		FTC_Manager_RemoveFaceID(font->ftcmanager, face_id);
+		FTC_Manager_Done(font->ftcmanager);
 		if (font->from == SFTD_LOAD_FROM_FILE) {
 			free(font->filename);
 		}
@@ -184,7 +207,7 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
-	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
 
 	FT_Int charmap_index;
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
@@ -261,7 +284,7 @@ void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
-	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
 
 	FT_Int charmap_index;
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
@@ -338,7 +361,7 @@ int sftd_get_text_width(sftd_font *font, unsigned int size, const char *text)
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
-	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
 
 	FT_Int charmap_index;
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
@@ -398,7 +421,7 @@ void sftd_draw_text_wrap(sftd_font *font, int x, int y, unsigned int color, unsi
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
-	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
 
 	FT_Int charmap_index;
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
@@ -491,7 +514,7 @@ void sftd_calc_bounding_box(int *boundingWidth, int *boundingHeight, sftd_font *
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;
 	FT_Face face;
-	FTC_Manager_LookupFace(ftcmanager, face_id, &face);
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
 
 	FT_Int charmap_index;
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
