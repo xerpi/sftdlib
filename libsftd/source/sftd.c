@@ -227,6 +227,13 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
 	FT_ULong flags = FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL;
 
 	while (*text) {
+		if(*text == '\n') {
+			pen_x = x;
+			pen_y += size;
+			text++;
+			continue;
+		}
+
 		glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, *text);
 
 		if (use_kerning && previous && glyph_index) {
@@ -304,6 +311,13 @@ void sftd_draw_wtext(sftd_font *font, int x, int y, unsigned int color, unsigned
 	FT_ULong flags = FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL;
 
 	while (*text) {
+		if(*text == '\n') {
+			pen_x = x;
+			pen_y += size;
+			text++;
+			continue;
+		}
+
 		glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, *text);
 
 		if (use_kerning && previous && glyph_index) {
