@@ -431,6 +431,66 @@ int sftd_get_text_width(sftd_font *font, unsigned int size, const char *text)
 	return pen_x;
 }
 
+int sftd_get_wtext_width(sftd_font *font, unsigned int size, const wchar_t *text)
+{
+	FTC_FaceID face_id = (FTC_FaceID)font;
+	FT_Face face;
+	FTC_Manager_LookupFace(font->ftcmanager, face_id, &face);
+
+	FT_Int charmap_index;
+	charmap_index = FT_Get_Charmap_Index(face->charmap);
+
+	FT_Glyph glyph;
+	FT_Bool use_kerning = FT_HAS_KERNING(face);
+	FT_UInt glyph_index, previous = 0;
+	int pen_x = 0;
+	int pen_y = size;
+
+	FTC_ScalerRec scaler;
+	scaler.face_id = face_id;
+	scaler.width = size;
+	scaler.height = size;
+	scaler.pixel = 1;
+
+	FT_ULong flags = FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL;
+
+	while (*text) {
+		glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, *text);
+
+		if (use_kerning && previous && glyph_index) {
+			FT_Vector delta;
+			FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_DEFAULT, &delta);
+			pen_x += delta.x >> 6;
+		}
+
+		if (!texture_atlas_exists(font->tex_atlas, glyph_index)) {
+			FTC_ImageCache_LookupScaler(font->imagecache, &scaler, flags, glyph_index, &glyph, NULL);
+
+			if (!atlas_add_glyph(font->tex_atlas, glyph_index, (FT_BitmapGlyph)glyph, size)) {
+				continue;
+			}
+		}
+
+		bp2d_rectangle rect;
+		int bitmap_left, bitmap_top;
+		int advance_x, advance_y;
+		int glyph_size;
+
+		texture_atlas_get(font->tex_atlas, glyph_index,
+			&rect, &bitmap_left, &bitmap_top,
+			&advance_x, &advance_y, &glyph_size);
+
+		const float draw_scale = size/(float)glyph_size;
+
+		pen_x += (advance_x >> 16) * draw_scale;
+		pen_y += (advance_y >> 16) * draw_scale;
+
+		previous = glyph_index;
+		text++;
+	}
+	return pen_x;
+}
+
 void sftd_draw_text_wrap(sftd_font *font, int x, int y, unsigned int color, unsigned int size, unsigned int lineWidth, const char *text)
 {
 	FTC_FaceID face_id = (FTC_FaceID)font;

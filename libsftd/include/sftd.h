@@ -110,8 +110,18 @@ void sftd_draw_wtextf(sftd_font *font, int x, int y, unsigned int color, unsigne
  * @param font the font used to calculate the width
  * @param size the font size
  * @param text a pointer to the text that will be used to calculate the length
+ * @return the width in pixels
  */
 int sftd_get_text_width(sftd_font *font, unsigned int size, const char *text);
+
+/**
+ * @brief Returns the width of the given wide text in pixels
+ * @param font the font used to calculate the width
+ * @param size the font size
+ * @param text a pointer to the wide text that will be used to calculate the length
+ * @return the width in pixels
+ */
+int sftd_get_wtext_width(sftd_font *font, unsigned int size, const wchar_t *text);
 
 /**
  * @brief Draws text using a font. The text will wrap after the pixels specified in lineWidth.
