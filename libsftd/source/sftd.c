@@ -233,6 +233,10 @@ void sftd_draw_text(sftd_font *font, int x, int y, unsigned int color, unsigned 
 			text++;
 			continue;
 		}
+		if(*text == '\r') {
+			text++;
+			continue;
+		}
 
 		glyph_index = FTC_CMapCache_Lookup(font->cmapcache, (FTC_FaceID)font, charmap_index, *text);
 
